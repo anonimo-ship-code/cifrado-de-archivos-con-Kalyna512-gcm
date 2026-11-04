@@ -3,13 +3,11 @@ import sys
 import getpass
 import subprocess
 import urllib.request
-
 BASE = os.path.expanduser("~/.kalyna")
 JAR_NAME = "bcprov-jdk18on-1.78.1.jar"
 JAR = os.path.join(BASE, JAR_NAME)
 JAR_URL = ("https://repo1.maven.org/maven2/org/bouncycastle/"
            "bcprov-jdk18on/1.78.1/" + JAR_NAME)
-
 JAVA_SRC = r'''
 import org.bouncycastle.crypto.engines.DSTU7624Engine;
 import org.bouncycastle.crypto.modes.KGCMBlockCipher;
@@ -23,16 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
-
 public class Kalyna {
     static final byte[] MAGIC = "KLN2".getBytes(StandardCharsets.US_ASCII);
     static final int MAC = 16, CHUNK = (1 << 20) - 64, ITER = 600000, HEADER = 80;
-
     static byte[] derive(char[] pw, byte[] salt) throws Exception {
         SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
         return f.generateSecret(new PBEKeySpec(pw, salt, ITER, 512)).getEncoded();
     }
-
     static byte[] run(boolean enc, byte[] key, byte[] nonce, byte[] aad,
                       byte[] data, int len) throws Exception {
         KGCMBlockCipher c = new KGCMBlockCipher(new DSTU7624Engine(512));
@@ -42,7 +37,6 @@ public class Kalyna {
         n += c.doFinal(out, n);
         return Arrays.copyOf(out, n);
     }
-
     static byte[] cat(byte[]... parts) {
         int t = 0;
         for (byte[] p : parts) t += p.length;
@@ -51,14 +45,11 @@ public class Kalyna {
         for (byte[] p : parts) { System.arraycopy(p, 0, r, o, p.length); o += p.length; }
         return r;
     }
-
     static byte[] aadOf(byte[] header, byte[] c, boolean fin) throws Exception {
         return MessageDigest.getInstance("SHA-512")
                 .digest(cat(header, c, new byte[]{(byte) (fin ? 1 : 0)}));
     }
-
     static byte[] ctr(long i) { return ByteBuffer.allocate(8).putLong(i).array(); }
-
     static int readFull(InputStream in, byte[] b) throws IOException {
         int t = 0;
         while (t < b.length) {
@@ -68,7 +59,6 @@ public class Kalyna {
         }
         return t;
     }
-
     static void encrypt(String inPath, String outPath, char[] pw) throws Exception {
         SecureRandom rnd = new SecureRandom();
         byte[] salt = new byte[16], prefix = new byte[56];
@@ -88,12 +78,10 @@ public class Kalyna {
                 int plen = CHUNK;
                 if (fin) {
                     plen = (curLen / 64 + 1) * 64;
-                    plain = new byte[plen];
-                    System.arraycopy(cur, 0, plain, 0, curLen);
+                    plain = new byte[plen];                System.arraycopy(cur, 0, plain, 0, curLen);
                     plain[curLen] = (byte) 0x80;
                 }
-                byte[] c = ctr(i);
-                out.write(run(true, key, cat(prefix, c), aadOf(header, c, fin), plain, plen));
+                byte[] c = ctr(i); out.write(run(true, key, cat(prefix, c), aadOf(header, c, fin), plain, plen));
                 if (fin) break;
                 curLen = readFull(in, cur);
                 i++;
@@ -105,7 +93,6 @@ public class Kalyna {
         if (!tmp.renameTo(new File(outPath)))
             throw new IOException("No se pudo crear " + outPath);
     }
-
     static void decrypt(String inPath, String outPath, char[] pw) throws Exception {
         File tmp = new File(outPath + ".tmp");
         try (InputStream in = new BufferedInputStream(new FileInputStream(inPath), 1 << 16)) {
@@ -132,7 +119,7 @@ public class Kalyna {
                         int e = p.length;
                         while (e > 0 && p[e - 1] == 0) e--;
                         if (e == 0 || p[e - 1] != (byte) 0x80) throw new IOException("Relleno invalido");
-                        out.write(p, 0, e - 1);
+out.write(p, 0, e - 1);
                         break;
                     }
                     out.write(p);
@@ -148,7 +135,6 @@ public class Kalyna {
             throw e;
         }
     }
-
     public static void main(String[] a) {
         try {
             BufferedReader br = new BufferedReader(
@@ -158,15 +144,13 @@ public class Kalyna {
             if (a[0].equals("c")) encrypt(a[1], a[2], pw);
             else decrypt(a[1], a[2], pw);
         } catch (Exception e) {
-            System.err.println("ERROR: Contrasena incorrecta, archivo corrupto/modificado o fallo de E/S ("
+System.err.println("ERROR: Contrasena incorrecta, archivo corrupto/modificado o fallo de E/S ("
                     + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
             System.exit(1);
         }
     }
 }
 '''
-
-
 def preparar():
     os.makedirs(BASE, exist_ok=True)
     if not os.path.exists(JAR):
